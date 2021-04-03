@@ -126,6 +126,9 @@ entrypoint
 			ldx		#>msg_cpu65816Detected
 +	jsr		Print
 
+	lda		#$80+$0d
+	jsr		COUT
+
 	lda		#0
 	sta		totalTests+0
 	sta		totalTests+1
@@ -184,14 +187,21 @@ PlaySpeechPhrase
 		rts
 +
 
-	lda		#$80+$0d
-	jsr		COUT
+	jsr		PrintSlotNum
 
 	lda		hasSC01
 	beq		+
 		lda		#<msg_PressToPlaySC01
 		ldx		#>msg_PressToPlaySC01
 		jsr		Print
+
+		lda		hasSSI263
+		beq		+
+
+		lda		#$80+','
+		jsr		COUT
+		lda		#$80+' '
+		jsr		COUT
 +
 
 	lda		hasSSI263
@@ -232,9 +242,14 @@ PlaySpeechPhrase
 
 ;
 
-msg_PressToPlaySC01		!text "1 to use SC01; ",0
-msg_PressToPlaySSI263	!text "2 to use SSI263; ",0
-msg_EscToQuit			!text "or ESC",$d,0
+;  0123456789012345678901234567890123456789
+; "Slot #x :1 for SC01 or ESC"
+; "Slot #x :1 for SC01, 2 for SSI263 or ESC"
+; "Slot #x :2 for SSI263 or ESC"
+
+msg_PressToPlaySC01		!text "1 for SC01",0
+msg_PressToPlaySSI263	!text "2 for SSI263",0
+msg_EscToQuit			!text " or ESC",$d,0
 
 ;------------------------------------------------------------------------------
 
