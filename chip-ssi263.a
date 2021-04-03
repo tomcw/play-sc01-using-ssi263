@@ -99,14 +99,14 @@ KickSSI263_no_PCR
 
 	; Setup SSI263 param regs 4,3,2,1 (as not done in ISR)
 	ldy		#SSI_FILFREQ			; start with reg4
--		lda		SSI263ParamData,y
+-		lda		SSI263AttributeData,y
 		sta		(SSI263Base),Y
 		dey
 		bne		-					; end with reg1
 
-	lda		SSI263ParamData,y
-	ora		#CONTROL_H
 	ldy		#SSI_CTTRAMP
+	lda		SSI263AttributeData,y
+	ora		#CONTROL_H
 	sta		(SSI263Base),y
 
 	; Warning: stepping this won't yield an IRQ, since the phoneme completes before H->L (assuming prev mode=MODE_IRQ_DISABLED)
@@ -115,14 +115,14 @@ KickSSI263_no_PCR
 	sta		(SSI263Base),y
 
 	; H->L sets SSI263 operation mode = DR1:DR0, ie. IRQ active
-	lda		SSI263ParamData,y
-	and		#!CONTROL_H & $ff
 	ldy		#SSI_CTTRAMP
+	lda		SSI263AttributeData,y
+	and		#!CONTROL_H & $ff
 	sta		(SSI263Base),y
 
 	rts
 
-SSI263ParamData
+SSI263AttributeData
 ;	!byte	$00,$52,$B8,$7B,$E6		; SMS's Classic Adventure
 	!byte	$00,$20,$A8,$5C,$E9		; SSI263A Programming Guide's default values
 
