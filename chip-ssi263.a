@@ -97,7 +97,15 @@ KickSSI263
 
 KickSSI263_no_PCR
 
-	lda		#CONTROL_H
+	; Setup SSI263 regs4,3,2,1 (as not done in ISR)
+	ldy		#SSI_FILFREQ			; start with reg4
+-		lda		SSI263ParamData,y
+		sta		(SSI263Base),Y
+		dey
+		bne		-					; end with reg1
+
+	lda		SSI263ParamData,y
+	ora		#CONTROL_H
 	ldy		#SSI_CTTRAMP
 	sta		(SSI263Base),y
 
@@ -106,11 +114,17 @@ KickSSI263_no_PCR
 	ldy		#SSI_DURPHON
 	sta		(SSI263Base),y
 
-	lda		#CONTROL_L				; H->L sets SSI263 operation mode = DR1:DR0, ie. IRQ active
+	; H->L sets SSI263 operation mode = DR1:DR0, ie. IRQ active
+	lda		SSI263ParamData,y
+	and		#!CONTROL_H & $ff
 	ldy		#SSI_CTTRAMP
 	sta		(SSI263Base),y
 
 	rts
+
+SSI263ParamData
+;	!byte	$00,$52,$B8,$7B,$E6		; SMS's Classic Adventure
+	!byte	$00,$20,$A8,$5C,$E9		; SSI263A Programming Guide's default values
 
 ;------------------------------------------------------------------------------
 
@@ -394,7 +408,7 @@ TestSSI263ISR
 	;------
 
 	lda		#0
-	ldy		#SSI_FILFREQ			; start with reg4
+	ldy		#4
 -		ora		(SpeechData),y
 		dey
 		bpl		-
@@ -407,20 +421,18 @@ TestSSI263ISR
 	lda		#IER_CLR|IxR_TIMER1
 	ldy		#SY6522_IER
 	sta		(MBTimer),y				; Disable Timer1 IRQ
-	jmp		@exit					; NB. don't go via code to set SpeechData+=SSI_NUM_REGS
+	jmp		@exit					; NB. don't go via code to set SpeechData+=1
 
-+	ldy		#SSI_FILFREQ			; start with reg4
--		lda		(SpeechData),y
-		sta		(SSI263Base),y
-		dey
-		bpl		-
++	ldy		#SSI_DURPHON			; just reg0
+	lda		(SpeechData),y
+	sta		(SSI263Base),y
 
 	; NB. don't reset T1C to $ffff - just let it continue to count down
 	; So total speech phrase will be more accurate, but individual phonemes won't be. Maybe use T2 for each phoneme?
 
 	lda		SpeechDataL
 	clc
-	adc		#SSI_NUM_REGS
+	adc		#1
 	sta		SpeechDataL
 	bcc		+
 	inc		SpeechDataH
@@ -449,23 +461,23 @@ phraseDuration	!byte 0,0,0
 
 ClassicAdv
 ; SMS's Mockingboard - Crowther and Woods Adventure "CLASSIC ADVENTURE" (duration=1200ms)
-	!byte $29,$52,$B8,$7B,$E6
-	!byte $2D,$52,$B8,$7B,$E6
-	!byte $60,$52,$B8,$7B,$E6
-	!byte $0C,$52,$B8,$7B,$E6
-	!byte $30,$52,$B8,$7B,$E6
-	!byte $47,$52,$B8,$7B,$E6
-	!byte $29,$52,$B8,$7B,$E6
-	!byte $4C,$52,$B8,$7B,$E6
-	!byte $0C,$52,$B8,$7B,$E6
-	!byte $25,$52,$B8,$7B,$E6
-	!byte $33,$52,$B8,$7B,$E6
-	!byte $EC,$52,$B8,$7B,$E6
-	!byte $47,$52,$B8,$7B,$E6
-	!byte $47,$52,$B8,$7B,$E6
-	!byte $78,$52,$B8,$7B,$E6
-	!byte $68,$52,$B8,$7B,$E6
-	!byte $72,$52,$B8,$7B,$E6
-	!byte $5C,$52,$B8,$7B,$E6
+	!byte $29
+	!byte $2D
+	!byte $60
+	!byte $0C
+	!byte $30
+	!byte $47
+	!byte $29
+	!byte $4C
+	!byte $0C
+	!byte $25
+	!byte $33
+	!byte $EC
+	!byte $47
+	!byte $47
+	!byte $78
+	!byte $68
+	!byte $72
+	!byte $5C
 NullPhrase
 	!byte 0,0,0,0,0
