@@ -1,0 +1,471 @@
+;license:MIT
+;(c) 2021 by Tom Charlesworth
+;
+; SSI263 related
+;
+
+;------------------------------------------------------------------------------
+
+DetectSSI263
+; Pre: zpTmp1 = 6522 bitmap in b1:0
+; Post:
+
+	; SSI263 is only on MB-C & Phasor, both of which have 2x 6522's
+	; - Speech using 6522 PCR w/o IRQ (based on Willy Byte's SSI263 detection code)
+
+	lda		#SSI_A_BASE
+	sta		SSI263BaseL
+	lda		MBBaseH
+	sta		SSI263BaseH
+
+	lda		#SY6522_B_BASE
+	sta		MBBaseL
+
+	lda		#1
+	sta		zpTmp2						; mask
+
+	lda		zpTmp1
+	and		#2							; SSI263A is connected to 2nd 6522
+	beq		@nextSSI263
+
+@loop	lda		#IER_CLR|IxR_SSI263
+		ldy		#SY6522_IER
+		sta		(MBBase),y				; disable CA1(Speech) IRQ
+
+		jsr		KickSSI263
+
+		lda		#$FF
+		jsr		WAIT					; delay for 0x28882 (166018) cycles / ~163ms
+
+		ldy		#SY6522_IFR
+		lda		#IxR_SSI263				; check CA1(Speech) IRQ
+		and		(MBBase),y
+		beq		@nextSSI263
+		sta		(MBBase),y				; clear CA1(Speech) IRQ
+
+			jsr		DisableSSI263
+			lda		zpTmp2
+			ora		hasSSI263
+			sta		hasSSI263
+
+@nextSSI263
+		lda		MBBaseL
+		beq		+
+		lda		#SSI_B_BASE
+		sta		SSI263BaseL
+		lda		#SY6522_A_BASE
+		sta		MBBaseL
+		asl		zpTmp2					; mask<<1
+
+		lda		zpTmp1
+		and		#1						; SSI263B is connected to 1st 6522
+		bne		@loop
+
++	rts
+
+;------------------------------------------------------------------------------
+
+DisableSSI263
+; NB. Called from userland & ISR
+
+	lda		#CONTROL_H
+	ldy		#SSI_CTTRAMP
+	sta		(SSI263Base),y
+
+	lda		#MODE_IRQ_DISABLED+$00	; DR1:DR0=0, P5:P0=$00
+	ldy		#SSI_DURPHON
+	sta		(SSI263Base),y
+
+	lda		#CONTROL_L				; H->L sets SSI263 operation mode = DR1:DR0, ie. IRQ inactive
+	ldy		#SSI_CTTRAMP
+	sta		(SSI263Base),y
+
+	rts
+
+;------------------------------------------------------------------------------
+
+KickSSI263
+
+	lda		#$0C					; Peripheral for PA port Control: CA2 = low output (Pin18: Power Down/Reset)
+									; CA1 = negative active edge (input) (Pin4: A/!R)
+	ldy		#SY6522_PCR
+	sta		(MBBase),y
+
+	lda		#IxR_SSI263
+	ldy		#SY6522_IFR
+	sta		(MBBase),y				; clear CA1(Speech) IRQ after setting PCR
+
+KickSSI263_no_PCR
+
+	lda		#CONTROL_H
+	ldy		#SSI_CTTRAMP
+	sta		(SSI263Base),y
+
+	; Warning: stepping this won't yield an IRQ, since the phoneme completes before H->L (assuming prev mode=MODE_IRQ_DISABLED)
+	lda		#MODE_PHONEME_TRANSITIONED_INFLECTION+$00	; DR1:DR0=3 , P5:P0=$00
+	ldy		#SSI_DURPHON
+	sta		(SSI263Base),y
+
+	lda		#CONTROL_L				; H->L sets SSI263 operation mode = DR1:DR0, ie. IRQ active
+	ldy		#SSI_CTTRAMP
+	sta		(SSI263Base),y
+
+	rts
+
+;------------------------------------------------------------------------------
+
+PlaySSI263_no_PCR
+
+	ldy		#1
+	bne		+
+
+PlaySSI263
+; Pre: X:A = phoneme data
+;	MB mode    : MBBaseL = SY6522_A_BASE    / SY6522_B_BASE
+;	Phasor mode: MBBaseL = SY6522_A_PH_BASE / SY6522_B_BASE
+
+	ldy		#0
++	sty		zpTmp2
+
+	sta		SpeechDataL
+	stx		SpeechDataH
+
+	sei
+	inc		doingSpeech
+
+	lda		#0
+	sta		irqT1IntCount
+
+	lda		zpTmp2
+	bne		@noPCR1
+		jsr		KickSSI263
+		jmp		+
+@noPCR1	jsr		KickSSI263_no_PCR
++
+
+	lda		#$ff					; T1C = T1L = $FFFF
+	ldy		#SY6522_TIMER1L_COUNTER
+	sta		(MBTimer),y
+	iny								; SY6522_TIMER1H_COUNTER
+	sta		(MBTimer),y				; (and clears IFR.b6)
+
+	lda		#ACR_FREERUNNING
+	ldy		#SY6522_ACR
+	sta		(MBTimer),y				; Free-running timer
+
+	lda		#IER_SET|IxR_TIMER1
+	ldy		#SY6522_IER
+	sta		(MBTimer),y				; Enable Timer1 IRQ
+
+	lda		zpTmp2
+	bne		@noPCR2
+		lda		#IER_SET|IxR_SSI263
+		;ldy	#SY6522_IER
+		sta		(MBBase),y			; Enable CA1(Speech) IRQ
+@noPCR2
+
+	cli
+
+	rts
+
+;------------------------------------------------------------------------------
+
+TestSSI263
+; Pre: has6522, hasSSI263
+; Post: C=0(OK), C=1(NG)
+; Uses: zpTmp1 (so don't use in sub-funcs)
+
+	lda		has6522
+	and		#1
+	beq		+
+		lda		#IER_CLR|IxR_TIMER1|IxR_TIMER2|IxR_SSI263
+		ldy		#SY6522_A_BASE+SY6522_IER	; disable IRQ
+		sta		(MBBase),y
+		ldy		#SY6522_A_BASE+SY6522_IFR	; clear IRQ flag
+		sta		(MBBase),y
++	lda		has6522
+	and		#2
+	beq		+
+		lda		#IER_CLR|IxR_TIMER1|IxR_TIMER2|IxR_SSI263
+		ldy		#SY6522_B_BASE+SY6522_IER	; disable IRQ
+		sta		(MBBase),y
+		ldy		#SY6522_B_BASE+SY6522_IFR	; clear IRQ flag
+		sta		(MBBase),y
++
+
+	lda		#<TestSSI263ISR
+	sta		IRQL
+	lda		#>TestSSI263ISR
+	sta		IRQH
+
+	lda		#COMPONENT_SSI263+1		; test component $41
+	sta		testComponentNum
+	lda		#$ff
+	sta		testNum					; test #00
+
+	lda		#SSI_A_BASE
+	sta		SSI263BaseL
+	lda		MBBaseH
+	sta		MBTimerH
+	sta		SSI263BaseH
+	lda		#SY6522_B_BASE
+	sta		MBBaseL
+	sta		MBTimerL				; NB. MBTimer is used for TIMER1, and so doesn't change for SSI263A/SSI263B
+
+	lda		hasSSI263
+	lsr
+	sta		zpTmp1
+	bcc		@nextSSI263
+
+@loop	inc		testNum				; test #00, 05
+		jsr		T263_0
+		bcs		@error
+
+@nextSSI263
+		lda		#SSI_B_BASE
+		sta		SSI263BaseL
+		lda		#SY6522_A_BASE
+		sta		MBBaseL
+
+		lsr		zpTmp1
+		bcs		@loop
+
+	clc
+	rts
+
+@error
+; Pre: zpTmp2 = expected value
+;	A = actual value
+; Post: C=1(NG)
+
+	sta		errorActual
+	lda		zpTmp2
+	sta		errorExpected
+
+	lda		#0
+	sta		MBBaseL
+
+	sec
+	rts
+
+;------------------------------------------------------------------------------
+
+CalcPhraseDuration
+
+	lda		irqT1IntCount
+	sta		phraseDuration+0			;# T1 ints
+
+	lda		irqT1H
+	cmp		irqT1H2
+	beq		+
+		; T1 underflow between T1H & T1H2, so use: T1=T1H|00
+		; and irqT1IntCount will account for the underflow
+		lda		#0
+		sta		irqT1L
+
+	; NB. normally for multi-byte subtraction you'd start with T1L, but since there's no borrow ($FFFF-HHLL) it's OK this way!
+	; (do it this way so that the order is: phraseDuration-H,M,L)
++	sec									; $FFFF - T1H|T1L
+	lda		#$ff
+	sbc		irqT1H
+	sta		phraseDuration+1			;T1H
+
+	lda		#$ff
+	sbc		irqT1L
+	sta		phraseDuration+2			;T1L
+
+	rts
+
+;------------------------------------------------------------------------------
+
+T263_0
+; Pre: MBBase, SSI263Base
+; Post: C=0(OK), C=1(NG)
+;
+; Test#0
+; . Play phrase "CLASSIC ADVENTURE" and check total duration is within tolerance
+
+	jsr		resetSubTest			; subTest #0
+	jsr		incTotalTests
+
+	lda		#<ClassicAdv
+	ldx		#>ClassicAdv
+	jsr		PlaySSI263
+
+	ldy		#10	; delay of 0x19555F cycles = 1,660,255 = ~1.623s
+-		lda #$ff
+		jsr WAIT
+		dey
+		bne		-
+
+	lda		doingSpeech
+	bne		@error
+
+	clc								; C=0(OK)
+	bcc		@done
+
+@error
+	; Error: phrase not complete
+-		lda		doingSpeech
+		bne		-
+	sta		zpTmp2					; expected
+	sec								; C=1(NG)
+
+@done
+	sei
+	php
+
+	ldy		#SY6522_IER
+	lda		#IER_CLR|IxR_SSI263
+	sta		(MBBase),y				; Disable CA1(Speech) IRQ
+	lda		#IER_CLR|IxR_TIMER1
+	sta		(MBTimer),y				; Disable Timer1 IRQ
+
+	jsr		CalcPhraseDuration		; Real MB: 0x132BDD,0x132E59,0x133073 (AppleWin: 0x18D3D8,0x192332/running; ~0x14EFFF,0x14F247/stepping)
+
+	lda		#1						; actual
+	plp
+	rts
+
+;------------------------------------------------------------------------------
+
+TestSSI263ISR
+; Pre:
+;	6502 has pushed P
+;	Apple ROM has stored A to $45 (not Apple //e ROM!)
+;	MBBaseL = $00 or $80
+;	MBTimer (may / may not equal MBBase)
+;	SpeechData
+;	SSI263Base
+; Post:
+;	irqT1IntCount, irqT1H, irqT1H2, irqT1L
+;	isrFlag=1 (on SSI263 IRQ)
+;	SpeechData (incremented)
+;
+; NB. Need separate MBBase (for PCR) and MBTimer (for T1) because:
+; If we were using SSI263B / 6522A with 6522A.TIMER1 active, then:
+;  a) write to SSI263.reg4 will set T1C_L (so on next latch reload, it'll be $ffxx, not $ffff)
+;  b) false-read from SSI263.reg4 (6502-only) will clear any pending T1 IRQ
+;
+
+	txa
+	pha
+	tya
+	pha
+
+	;------
+
+	ldy		#SY6522_TIMER1H_COUNTER
+	lda		(MBTimer),y
+	sta		irqT1H
+
+	; Read IFR.T1 before reading T1C_l (which clears IFR.T1)
+	; NB. read IFR.T1 between the 2 reads of T1H, so that irqT1IntCount is consistent with T1H vs T1H2
+	; Eg. IFR.T1 could become 1 between reading T1H & T1H2
+
+	ldy		#SY6522_IFR
+	lda		(MBTimer),y
+	and		#IxR_TIMER1
+	tax								; save IFR.T1
+
+	ldy		#SY6522_TIMER1L_COUNTER
+	lda		(MBTimer),y				; (reading T1C_l clears IFR.b6)
+	sta		irqT1L
+	ldy		#SY6522_TIMER1H_COUNTER
+	lda		(MBTimer),y
+	sta		irqT1H2
+
+	txa								; test IFR.T1
+	beq		+
+
+	inc		irqT1IntCount			; Timer1 IRQ
+	jmp		@exit
+
+	;
+
++	ldy		#SY6522_IFR
+	lda		#IxR_SSI263
+	sta		(MBBase),y				; clear all remaining IRQs (ie. Speech - but for Phasor only if in Mockingboard mode)
+									; NB. Phasor in native Phasor mode: IRQ cleared by write to DURPHON (reg0)
+
+	lda		#1
+	sta		isrFlag
+
+	;------
+
+	lda		#0
+	ldy		#SSI_FILFREQ			; start with reg4
+-		ora		(SpeechData),y
+		dey
+		bpl		-
+	tay								; tst a
+	bne		+
+
+	; last phoneme complete, so finalise with PAUSE phoneme + disable SSI263 IRQ + disable 6522 T1 IRQ
+	sta		doingSpeech				; =0
+	jsr		DisableSSI263
+	lda		#IER_CLR|IxR_TIMER1
+	ldy		#SY6522_IER
+	sta		(MBTimer),y				; Disable Timer1 IRQ
+	jmp		@exit					; NB. don't go via code to set SpeechData+=SSI_NUM_REGS
+
++	ldy		#SSI_FILFREQ			; start with reg4
+-		lda		(SpeechData),y
+		sta		(SSI263Base),y
+		dey
+		bpl		-
+
+	; NB. don't reset T1C to $ffff - just let it continue to count down
+	; So total speech phrase will be more accurate, but individual phonemes won't be. Maybe use T2 for each phoneme?
+
+	lda		SpeechDataL
+	clc
+	adc		#SSI_NUM_REGS
+	sta		SpeechDataL
+	bcc		+
+	inc		SpeechDataH
++
+
+@exit
+	pla
+	tay
+	pla
+	tax
+
+	lda		$45		; for Apple II/II+
+	rti
+
+;------------------------------------------------------------------------------
+
+!zone data
+
+doingSpeech		!byte 0
+
+irqT1H			!byte 0
+irqT1L			!byte 0
+irqT1H2			!byte 0
+irqT1IntCount	!byte 0
+phraseDuration	!byte 0,0,0
+
+ClassicAdv
+; SMS's Mockingboard - Crowther and Woods Adventure "CLASSIC ADVENTURE" (duration=1200ms)
+	!byte $29,$52,$B8,$7B,$E6
+	!byte $2D,$52,$B8,$7B,$E6
+	!byte $60,$52,$B8,$7B,$E6
+	!byte $0C,$52,$B8,$7B,$E6
+	!byte $30,$52,$B8,$7B,$E6
+	!byte $47,$52,$B8,$7B,$E6
+	!byte $29,$52,$B8,$7B,$E6
+	!byte $4C,$52,$B8,$7B,$E6
+	!byte $0C,$52,$B8,$7B,$E6
+	!byte $25,$52,$B8,$7B,$E6
+	!byte $33,$52,$B8,$7B,$E6
+	!byte $EC,$52,$B8,$7B,$E6
+	!byte $47,$52,$B8,$7B,$E6
+	!byte $47,$52,$B8,$7B,$E6
+	!byte $78,$52,$B8,$7B,$E6
+	!byte $68,$52,$B8,$7B,$E6
+	!byte $72,$52,$B8,$7B,$E6
+	!byte $5C,$52,$B8,$7B,$E6
+NullPhrase
+	!byte 0,0,0,0,0

@@ -1,0 +1,4 @@
+// run "debug.txt"
+bload "play-sc01-using-ssi263",2000
+
+asc msg_NoMB:msg_NoMBEnd
