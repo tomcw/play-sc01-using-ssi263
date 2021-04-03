@@ -97,7 +97,7 @@ KickSSI263
 
 KickSSI263_no_PCR
 
-	; Setup SSI263 regs4,3,2,1 (as not done in ISR)
+	; Setup SSI263 param regs 4,3,2,1 (as not done in ISR)
 	ldy		#SSI_FILFREQ			; start with reg4
 -		lda		SSI263ParamData,y
 		sta		(SSI263Base),Y
@@ -187,7 +187,7 @@ PlaySSI263
 TestSSI263
 ; Pre: has6522, hasSSI263
 ; Post: C=0(OK), C=1(NG)
-; Uses: zpTmp1 (so don't use in sub-funcs)
+; NB. Only uses one SSI263
 
 	lda		has6522
 	and		#1
@@ -228,21 +228,23 @@ TestSSI263
 
 	lda		hasSSI263
 	lsr
-	sta		zpTmp1
-	bcc		@nextSSI263
-
-@loop	inc		testNum				; test #00, 05
-		jsr		T263_0
-		bcs		@error
-
-@nextSSI263
+	bcs		+
 		lda		#SSI_B_BASE
 		sta		SSI263BaseL
 		lda		#SY6522_A_BASE
 		sta		MBBaseL
++
 
-		lsr		zpTmp1
-		bcs		@loop
+	inc		testNum				; test #00
+	jsr		T263_0
+	bcs		@error
+
+	inc		testNum				; test #01
+	jsr		T263_1
+	bcs		@error
+
+	lda		#0
+	sta		MBBaseL
 
 	clc
 	rts
@@ -302,6 +304,9 @@ T263_0
 	jsr		resetSubTest			; subTest #0
 	jsr		incTotalTests
 
+	lda		#0
+	sta		isrTranslate
+
 	lda		#<ClassicAdv
 	ldx		#>ClassicAdv
 	jsr		PlaySSI263
@@ -340,6 +345,61 @@ T263_0
 	lda		#1						; actual
 	plp
 	rts
+
+;------------------------------------------------------------------------------
+
+T263_1
+; Pre: MBBase, SSI263Base
+; Post: C=0(OK), C=1(NG)
+;
+; Test#1
+; . Play *SC01* phrase
+
+	jsr		resetSubTest			; subTest #0
+	jsr		incTotalTests
+
+	lda		#1
+	sta		isrTranslate
+
+	lda		#<TheSpyStrikesBack
+	ldx		#>TheSpyStrikesBack
+	jsr		PlaySSI263
+
+	ldy		#15	; delay of 0x266053 cycles = 2,515,027 = ~2.458s
+-		lda #$ff
+		jsr WAIT
+		dey
+		bne		-
+
+	lda		doingSpeech
+	bne		@error
+
+	clc								; C=0(OK)
+	bcc		@done
+
+@error
+	; Error: phrase not complete
+-		lda		doingSpeech
+		bne		-
+	sta		zpTmp2					; expected
+	sec								; C=1(NG)
+
+@done
+	sei
+	php
+
+	ldy		#SY6522_IER
+	lda		#IER_CLR|IxR_SSI263
+	sta		(MBBase),y				; Disable CA1(Speech) IRQ
+	lda		#IER_CLR|IxR_TIMER1
+	sta		(MBTimer),y				; Disable Timer1 IRQ
+
+	jsr		CalcPhraseDuration
+
+	lda		#1						; actual
+	plp
+	rts
+
 
 ;------------------------------------------------------------------------------
 
@@ -423,8 +483,25 @@ TestSSI263ISR
 	sta		(MBTimer),y				; Disable Timer1 IRQ
 	jmp		@exit					; NB. don't go via code to set SpeechData+=1
 
-+	ldy		#SSI_DURPHON			; just reg0
++	lda		isrTranslate
+	beq		@nativeSSI263
+
+	; translate: SC01 to SSI263
+	; NB. ignore SCO1's inflection b7:6 (no Apple II s/w uses it)
+
+	ldy		#0
+	lda		(SpeechData),y			; get SC01 phoneme
+	and		#$3f
+	tay
+	lda		Votrax2SSI263,y			; convert to SSI263
+	jmp		@setPhoneme
+
+@nativeSSI263
+	ldy		#SSI_DURPHON			; just reg0
 	lda		(SpeechData),y
+
+@setPhoneme
+	ldy		#SSI_DURPHON			; just reg0
 	sta		(SSI263Base),y
 
 	; NB. don't reset T1C to $ffff - just let it continue to count down
@@ -459,6 +536,8 @@ irqT1H2			!byte 0
 irqT1IntCount	!byte 0
 phraseDuration	!byte 0,0,0
 
+isrTranslate	!byte 0		; 1=translate phoneme from SC01 to SSI263
+
 ClassicAdv
 ; SMS's Mockingboard - Crowther and Woods Adventure "CLASSIC ADVENTURE" (duration=1200ms)
 	!byte $29
@@ -481,3 +560,74 @@ ClassicAdv
 	!byte $5C
 NullPhrase
 	!byte 0,0,0,0,0
+
+;
+
+Votrax2SSI263
+	!byte $02	; 00: EH3 jackEt -> E1 bEnt
+	!byte $0A	; 01: EH2 Enlist -> EH nEst
+	!byte $0B	; 02: EH1 hEAvy -> EH1 bElt
+	!byte $00	; 03: PA0 no sound -> PA
+	!byte $28	; 04: DT buTTer -> T Tart
+	!byte $08	; 05: A2 mAde -> A mAde
+	!byte $08	; 06: A1 mAde -> A mAde
+	!byte $2F	; 07: ZH aZure -> Z Zero
+	!byte $0E	; 08: AH2 hOnest -> AH gOt
+	!byte $07	; 09: I3 inhibIt -> I sIx
+	!byte $07	; 0A: I2 Inhibit -> I sIx
+	!byte $07	; 0B: I1 inhIbit -> I sIx
+	!byte $37	; 0C: M Mat -> More
+	!byte $38	; 0D: N suN -> N NiNe
+	!byte $24	; 0E: B Bag -> B Bag
+	!byte $33	; 0F: V Van -> V Very
+	;
+	!byte $32	; 10: CH* CHip -> SCH SHip (!)
+	!byte $32	; 11: SH SHop ->  SCH SHip
+	!byte $2F	; 12: Z Zoo -> Z Zero
+	!byte $10	; 13: AW1 lAWful -> AW Office
+	!byte $39	; 14: NG thiNG -> NG raNG
+	!byte $0F	; 15: AH1 fAther -> AH1 fAther
+	!byte $13	; 16: OO1 lOOking -> OO lOOk
+	!byte $13	; 17: OO bOOK -> OO lOOk
+	!byte $20	; 18: L Land -> L Lift
+	!byte $29	; 19: K triCK -> Kit
+	!byte $25	; 1A: J* juDGe -> D paiD (!)
+	!byte $2C	; 1B: H Hello -> HF Heart
+	!byte $26	; 1C: G Get -> KV taG
+	!byte $34	; 1D: F Fast -> F Four
+	!byte $25	; 1E: D paiD -> D paiD
+	!byte $30	; 1F: S paSS -> S Same
+	;
+	!byte $08	; 20: A dAY -> A mAde
+	!byte $09	; 21: AY dAY -> AI cAre
+	!byte $03	; 22: Y1 Yard -> YI Year
+	!byte $1B	; 23: UH3 missIOn -> UH3 nUt
+	!byte $0E	; 24: AH mOp -> AH gOt
+	!byte $27	; 25: P Past -> P Pen
+	!byte $11	; 26: O cOld -> O stOre
+	!byte $07	; 27: I pIn -> I sIx
+	!byte $16	; 28: U mOve -> U tUne
+	!byte $05	; 29: Y anY -> AY plEAse
+	!byte $28	; 2A: T Tap -> T Tart
+	!byte $1D	; 2B: R Red -> R Roof
+	!byte $01	; 2C: E mEEt -> E mEEt
+	!byte $23	; 2D: W Win -> W Water
+	!byte $0C	; 2E: AE dAd -> AE dAd
+	!byte $0D	; 2F: AE1 After -> AE1 After
+	;
+	!byte $10	; 30: AW2 sAlty -> AW Office
+	!byte $1A	; 31: UH2 About -> UH2 whAt
+	!byte $19	; 32: UH1 Uncle -> UH1 lOve
+	!byte $18	; 33: UH cUp -> UH wOnder
+	!byte $11	; 34: O2 fOr -> O stOre
+	!byte $11	; 35: O1 abOArd -> O stOre
+	!byte $14	; 36: IU yOU -> IU yOU
+	!byte $14	; 37: U1 yOU -> IU yOU
+	!byte $35	; 38: THV THe -> THV THere
+	!byte $36	; 39: TH THin -> TH wiTH
+	!byte $1C	; 3A: ER bIrd -> ER bIrd
+	!byte $0A	; 3B: EH gEt -> EH nEst
+	!byte $01	; 3C: E1 bE -> E mEEt
+	!byte $10	; 3D: AW cAll -> AW Office
+	!byte $00	; 3E: PA1 no sound -> PA
+	!byte $00	; 3F: STOP no sound -> PA
