@@ -110,7 +110,7 @@ PlaySC01
 
 ;------------------------------------------------------------------------------
 
-NUM_PHRASES=1
+NUM_PHRASES=7
 
 TestSC01
 ; Pre: has6522, hasSC01, A=phrase#
@@ -225,8 +225,13 @@ TSC01_0
 ;
 
 SC01Phrases
-	!word	TheSpyStrikesBack
-	!word	Ouch
+	!word	Spy_TheSpyStrikesBack
+	!word	Spy_Ouch
+	!word	CW_CrimeWave1
+	!word	CW_GameOver
+	!word	COM_Help
+	!word	COM_CantGoThatWay
+	!word	BZ_PitifulOpponent
 	!word	0
 
 ;------------------------------------------------------------------------------
@@ -330,12 +335,11 @@ TestSC01ISR
 
 ;------------------------------------------------------------------------------
 
-
 !zone data
 
 doingSpeechSC01		!byte 0
 
-TheSpyStrikesBack
+Spy_TheSpyStrikesBack
 ; Penguin Software's "The Spy Strikes Back"
 ; NB. For MAME 0.230 inflection (b7:6) changes the pitch, but the overall phrase duration remains constant at 0x15E0D0 cycles (model=applee)
 	!byte $03
@@ -362,7 +366,7 @@ TheSpyStrikesBack
 	!byte $3F
 	!byte 0,0,0,0,0
 
-Ouch
+Spy_Ouch
 ; Penguin Software's "The Spy Strikes Back" - "Ouch!"
 ; NB. For MAME 0.230 the overall phrase duration is 0x0679D4 cycles (model=applee)
 	!byte $03
@@ -370,6 +374,132 @@ Ouch
 	!byte $37
 	!byte $2A
 	!byte $10
+	!byte $03
+	!byte $3F
+	!byte 0,0,0,0,0
+
+CW_CrimeWave1
+; Penguin Software's "Crime Wave" - "Crime wave one"
+	!byte $03
+	!byte $19
+	!byte $2B
+	!byte $15
+	!byte $22
+	!byte $0C
+	!byte $03
+	!byte $2D
+	!byte $20
+	!byte $0F
+	!byte $03
+	!byte $2D
+	!byte $32
+	!byte $0D
+	!byte $3F
+	!byte 0,0,0,0,0
+
+CW_GameOver
+; Penguin Software's "Crime Wave" - "Game Over"
+	!byte $03
+	!byte $1C
+	!byte $20
+	!byte $0C
+	!byte $03
+	!byte $35
+	!byte $37
+	!byte $0F
+	!byte $3A
+	!byte $3F
+	!byte 0,0,0,0,0
+
+COM_Help
+; Sir Tech's "Crypt of Medea" - "Please consult the hint sheet"
+	!byte $3F
+	!byte $25
+	!byte $18
+	!byte $2C
+	!byte $12
+	!byte $03
+	!byte $19
+	!byte $3D
+	!byte $0D
+	!byte $1F
+	!byte $33
+	!byte $18
+	!byte $2A
+	!byte $3E
+	!byte $38
+	!byte $33
+	!byte $3E
+	!byte $1B
+	!byte $27
+	!byte $0D
+	!byte $2A
+	!byte $3E
+	!byte $11
+	!byte $2C
+	!byte $2A
+	!byte $3E
+	!byte $3E
+	!byte $3F
+	!byte 0,0,0,0,0
+
+COM_CantGoThatWay
+; Sir Tech's "Crypt of Medea" - "You can't go that way"
+	!byte $3F
+	!byte $29
+	!byte $28
+	!byte $3E
+	!byte $19
+	!byte $2E
+	!byte $0D
+	!byte $2A
+	!byte $3E
+	!byte $1C
+	!byte $26
+	!byte $3E
+	!byte $38
+	!byte $2E
+	!byte $2A
+	!byte $3E
+	!byte $2D
+	!byte $01
+	!byte $21
+	!byte $3E
+	!byte $3E
+	!byte $3F
+	!byte 0,0,0,0,0
+
+BZ_PitifulOpponent
+; "Berzap!" - "You were a pitiful opponent"
+	!byte $3F
+	!byte $22
+	!byte $28
+	!byte $03
+	!byte $03
+	!byte $2D
+	!byte $2D
+	!byte $2B
+	!byte $03
+	!byte $3F
+	!byte $05
+	!byte $3E
+	!byte $25
+	!byte $09
+	!byte $2A
+	!byte $0A
+	!byte $1D
+	!byte $32
+	!byte $18
+	!byte $03
+	!byte $3F
+	!byte $03
+	!byte $08
+	!byte $25
+	!byte $26
+	!byte $0D
+	!byte $01
+	!byte $0D
+	!byte $2A
 	!byte $03
 	!byte $3F
 	!byte 0,0,0,0,0
