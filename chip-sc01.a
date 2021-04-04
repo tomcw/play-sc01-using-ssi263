@@ -85,6 +85,7 @@ PlaySC01
 
 	lda		#0
 	sta		irqT1IntCount
+	sta		isrFlag
 
 	jsr		KickSC01
 
@@ -108,21 +109,30 @@ PlaySC01
 
 ;------------------------------------------------------------------------------
 
+NUM_PHRASES=1
+
 TestSC01
-; Pre: has6522, hasSC01
+; Pre: has6522, hasSC01, A=phrase#
 ; Post: C=0(OK), C=1(NG)
+; Uses: zpTmp1
+
+	cmp		#NUM_PHRASES+1
+	bcc		+						; A < NUM_PHRASES+1
+		rts
++
+	sta		zpTmp1
 
 	lda		has6522
 	and		#1
-	beq		@ok
+	beq		@done
 
 	lda		hasSC01
-	beq		@ok
+	beq		@done
 
 	lda		#IER_CLR|IxR_TIMER1|IxR_TIMER2|IxR_VOTRAX
-	ldy		#SY6522_IER	; disable IRQ
+	ldy		#SY6522_IER				; disable IRQ
 	sta		(MBBase),y
-	ldy		#SY6522_IFR	; clear IRQ flag
+	ldy		#SY6522_IFR				; clear IRQ flag
 	sta		(MBBase),y
 
 	lda		#<TestSC01ISR
@@ -146,7 +156,8 @@ TestSC01
 	jsr		TSC01_0
 	bcs		@error
 
-@ok	clc
+@done
+	clc
 	rts
 
 @error
@@ -164,7 +175,8 @@ TestSC01
 ;------------------------------------------------------------------------------
 
 TSC01_0
-; Pre: MBBaseL = SY6522_A_BASE
+; Pre: zpTmp1 = phrase#
+;	MBBaseL = SY6522_A_BASE
 ; Post: C=0(OK), C=1(NG)
 ;
 ; Test#0
@@ -173,28 +185,26 @@ TSC01_0
 	jsr		resetSubTest			; subTest #0
 	jsr		incTotalTests
 
-	lda		#<TheSpyStrikesBack
-	ldx		#>TheSpyStrikesBack
+	lda		zpTmp1
+	asl
+	tay
+	lda		SC01Phrases+1,y
+	tax								; X = addr_h
+	lda		SC01Phrases+0,y			; A = addr_l
 	jsr		PlaySC01
 
-	ldy		#15	; delay of 0x266053 cycles = 2,515,027 = ~2.458s
--		lda #$ff
-		jsr WAIT
-		dey
-		bne		-
+	lda #$ff
+	jsr WAIT						; wait: 163ms
 
-	lda		doingSpeechSC01
-	bne		@error
+	lda		isrFlag
+	sec
+	beq		@done					; need 1st phoneme IRQ by now
 
-	clc								; C=0(OK)
-	bcc		@done
-
-@error
-	; Error: phrase not complete
+	; TODO: add timeout
 -		lda		doingSpeechSC01
 		bne		-
-	sta		zpTmp2					; expected
-	sec								; C=1(NG)
+
+	clc
 
 @done
 	sei
@@ -204,11 +214,17 @@ TSC01_0
 	lda		#IER_CLR|IxR_TIMER1|IxR_VOTRAX
 	sta		(MBBase),y				; Disable Timer1 & SC01/Votrax IRQ
 
-	jsr		CalcPhraseDuration		; Real MB: <TODO> (MAME 0.230: 0x15E0BE; AppleWin: 0x250229,0x250C9B/running; 0x260B7B/stepping)
+	jsr		CalcPhraseDuration
 
-	lda		#1						; actual
 	plp
 	rts
+
+;
+
+SC01Phrases
+	!word	TheSpyStrikesBack
+	!word	Ouch
+	!word	0
 
 ;------------------------------------------------------------------------------
 
@@ -221,7 +237,7 @@ TestSC01ISR
 ;	SpeechData
 ; Post:
 ;	irqT1IntCount, irqT1H, irqT1H2, irqT1L
-;	isrFlag=1 (on SSI263 IRQ)
+;	isrFlag=1 (on SC01 IRQ)
 ;	SpeechData (incremented)
 ;
 
@@ -341,10 +357,8 @@ TheSpyStrikesBack
 	!byte $19
 	!byte $03
 	!byte $3F
-NullPhraseSC01
 	!byte 0,0,0,0,0
 
-!if 0 {
 Ouch
 ; Penguin Software's "The Spy Strikes Back" - "Ouch!"
 	!byte $03
@@ -355,4 +369,3 @@ Ouch
 	!byte $03
 	!byte $3F
 	!byte 0,0,0,0,0
-}

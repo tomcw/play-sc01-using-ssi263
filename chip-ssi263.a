@@ -149,6 +149,7 @@ PlaySSI263
 
 	lda		#0
 	sta		irqT1IntCount
+	sta		isrFlag
 
 	lda		zpTmp2
 	bne		@noPCR1
@@ -185,9 +186,16 @@ PlaySSI263
 ;------------------------------------------------------------------------------
 
 TestSSI263
-; Pre: has6522, hasSSI263
+; Pre: has6522, hasSSI263, A=phrase#
 ; Post: C=0(OK), C=1(NG)
-; NB. Only uses one SSI263
+; Uses: zpTmp1
+; NB. Only uses *one* SSI263
+
+	cmp		#NUM_PHRASES+1
+	bcc		+						; A < NUM_PHRASES+1
+		rts
++
+	sta		zpTmp1
 
 	lda		has6522
 	and		#1
@@ -239,9 +247,9 @@ TestSSI263
 	jsr		T263_0
 	bcs		@error
 
-	inc		testNum				; test #01
-	jsr		T263_1
-	bcs		@error
+;	inc		testNum				; test #01
+;	jsr		T263_1
+;	bcs		@error
 
 	lda		#0
 	sta		MBBaseL
@@ -299,6 +307,57 @@ T263_0
 ; Post: C=0(OK), C=1(NG)
 ;
 ; Test#0
+; . Play *SC01* phrase
+
+	jsr		resetSubTest			; subTest #0
+	jsr		incTotalTests
+
+	lda		#1
+	sta		isrTranslate
+
+	lda		zpTmp1
+	asl
+	tay
+	lda		SC01Phrases+1,y
+	tax								; X = addr_h
+	lda		SC01Phrases+0,y			; A = addr_l
+	jsr		PlaySSI263
+
+	lda #$ff
+	jsr WAIT
+
+	lda		isrFlag
+	sec
+	beq		@done					; need 1st phoneme IRQ by now
+
+	; TODO: add timeout
+-		lda		doingSpeech
+		bne		-
+
+	clc								; C=0(OK)
+
+@done
+	sei
+	php
+
+	ldy		#SY6522_IER
+	lda		#IER_CLR|IxR_SSI263
+	sta		(MBBase),y				; Disable CA1(Speech) IRQ
+	lda		#IER_CLR|IxR_TIMER1
+	sta		(MBTimer),y				; Disable Timer1 IRQ
+
+	jsr		CalcPhraseDuration
+
+	plp
+	rts
+
+;------------------------------------------------------------------------------
+
+T263_1
+; Pre: MBBase, SSI263Base
+; Post: C=0(OK), C=1(NG)
+;
+; Test#1
 ; . Play phrase "CLASSIC ADVENTURE" and check total duration is within tolerance
 
 	jsr		resetSubTest			; subTest #0
@@ -345,61 +404,6 @@ T263_0
 	lda		#1						; actual
 	plp
 	rts
-
-;------------------------------------------------------------------------------
-
-T263_1
-; Pre: MBBase, SSI263Base
-; Post: C=0(OK), C=1(NG)
-;
-; Test#1
-; . Play *SC01* phrase
-
-	jsr		resetSubTest			; subTest #0
-	jsr		incTotalTests
-
-	lda		#1
-	sta		isrTranslate
-
-	lda		#<TheSpyStrikesBack
-	ldx		#>TheSpyStrikesBack
-	jsr		PlaySSI263
-
-	ldy		#15	; delay of 0x266053 cycles = 2,515,027 = ~2.458s
--		lda #$ff
-		jsr WAIT
-		dey
-		bne		-
-
-	lda		doingSpeech
-	bne		@error
-
-	clc								; C=0(OK)
-	bcc		@done
-
-@error
-	; Error: phrase not complete
--		lda		doingSpeech
-		bne		-
-	sta		zpTmp2					; expected
-	sec								; C=1(NG)
-
-@done
-	sei
-	php
-
-	ldy		#SY6522_IER
-	lda		#IER_CLR|IxR_SSI263
-	sta		(MBBase),y				; Disable CA1(Speech) IRQ
-	lda		#IER_CLR|IxR_TIMER1
-	sta		(MBTimer),y				; Disable Timer1 IRQ
-
-	jsr		CalcPhraseDuration
-
-	lda		#1						; actual
-	plp
-	rts
-
 
 ;------------------------------------------------------------------------------
 

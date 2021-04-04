@@ -220,21 +220,31 @@ PlaySpeechPhrase
 		bit		KBDSTRB
 		cmp		#$80+27
 		beq		@out
-		cmp		#$80+'2'
-		beq		@ssi263
-		cmp		#$80+'1'
-		bne		-
 
-;@sc01
-	lda		hasSC01
-	beq		-
-	jsr		TestSC01
-	jmp		-
+		cmp		#$80+'1'
+		bcc		-
+		cmp		#$80+'9'+1
+		bcc		@sc01
+
+		cmp		#$80+'A'
+		bcc		-
+		cmp		#$80+'I'+1
+		bcs		-
 
 @ssi263
-	lda		hasSSI263
+	ldx		hasSSI263
 	beq		-
+	sec
+	sbc		#$80+'A'
 	jsr		TestSSI263
+	jmp		-
+
+@sc01
+	ldx		hasSC01
+	beq		-
+	sec
+	sbc		#$80+'1'
+	jsr		TestSC01
 	jmp		-
 
 @out
@@ -243,12 +253,12 @@ PlaySpeechPhrase
 ;
 
 ;  0123456789012345678901234567890123456789
-; "Slot #x :1 for SC01 or ESC"
-; "Slot #x :1 for SC01, 2 for SSI263 or ESC"
-; "Slot #x :2 for SSI263 or ESC"
+; "Slot #x:SC01: 1-9 or ESC"
+; "Slot #x:SC01: 1-9, SSI263: A-I or ESC"
+; "Slot #x:SSI263: A-I or ESC"
 
-msg_PressToPlaySC01		!text "1 for SC01",0
-msg_PressToPlaySSI263	!text "2 for SSI263",0
+msg_PressToPlaySC01		!text "SC01: 1-9",0
+msg_PressToPlaySSI263	!text "SSI263: A-I",0
 msg_EscToQuit			!text " or ESC",$d,0
 
 ;------------------------------------------------------------------------------
@@ -543,8 +553,6 @@ PrintSlotNum
 	jsr		Print
 	lda		slotUnderTest
 	ora		#$80+$30
-	jsr		COUT
-	lda		#$80+' '
 	jsr		COUT
 	lda		#$80+':'
 	jmp		COUT
