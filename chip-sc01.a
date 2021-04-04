@@ -334,7 +334,7 @@ doingSpeechSC01		!byte 0
 
 TheSpyStrikesBack
 ; Penguin Software's "The Spy Strikes Back"
-; NB. For MAME 0.230 inflection (b7:6) changes the pitch, but the overall phrase duration remains constant at 0x15E0BE cycles
+; NB. For MAME 0.230 inflection (b7:6) changes the pitch, but the overall phrase duration remains constant at 0x15E0D0 cycles (model=applee)
 	!byte $03
 	!byte $38
 	!byte $32
@@ -361,6 +361,7 @@ TheSpyStrikesBack
 
 Ouch
 ; Penguin Software's "The Spy Strikes Back" - "Ouch!"
+; NB. For MAME 0.230 the overall phrase duration is 0x0679D4 cycles (model=applee)
 	!byte $03
 	!byte $13
 	!byte $37

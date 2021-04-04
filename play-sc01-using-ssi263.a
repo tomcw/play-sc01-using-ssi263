@@ -154,6 +154,8 @@ entrypoint
 
 	;
 
+	lda		#$80+$0d
+	jsr		COUT
 	lda		#<msg_OK
 	ldx		#>msg_OK
 	jsr		Print
@@ -215,37 +217,51 @@ PlaySpeechPhrase
 	ldx		#>msg_EscToQuit
 	jsr		Print
 
--		lda		KBD
-		bpl		-
+@loop	lda		KBD
+		bpl		@loop
 		bit		KBDSTRB
 		cmp		#$80+27
 		beq		@out
 
 		cmp		#$80+'1'
-		bcc		-
+		bcc		@loop
 		cmp		#$80+'9'+1
 		bcc		@sc01
 
 		cmp		#$80+'A'
-		bcc		-
+		bcc		@loop
 		cmp		#$80+'I'+1
-		bcs		-
+		bcs		@loop
 
 @ssi263
 	ldx		hasSSI263
-	beq		-
+	beq		@loop
 	sec
 	sbc		#$80+'A'
 	jsr		TestSSI263
-	jmp		-
+	jmp		@outputTime
 
 @sc01
 	ldx		hasSC01
-	beq		-
+	beq		@loop
 	sec
 	sbc		#$80+'1'
 	jsr		TestSC01
-	jmp		-
+
+@outputTime
+	jsr		SaveHV
+	lda		#<msg_Time
+	ldx		#>msg_Time
+	jsr		Print
+	ldx		phraseDuration+0
+	jsr		PRNTX
+	ldy		phraseDuration+1
+	ldx		phraseDuration+2
+	jsr		PRNTYX
+	lda		#$80+$0d
+	jsr		COUT
+	jsr		RestoreHV
+	jmp		@loop
 
 @out
 	rts
@@ -260,6 +276,29 @@ PlaySpeechPhrase
 msg_PressToPlaySC01		!text "SC01: 1-9",0
 msg_PressToPlaySSI263	!text "SSI263: A-I",0
 msg_EscToQuit			!text " or ESC",$d,0
+msg_Time				!text "Time:",0
+
+;------------------------------------------------------------------------------
+
+SaveHV
+	ldx		#0
+-		lda		CH,x
+		sta		saveZPTextVars,x
+		inx
+		cpx		#(BAS2H-CH)+1
+		bne		-
+	rts
+
+;
+
+RestoreHV
+	ldx		#0
+-		lda		saveZPTextVars,x
+		sta		CH,x
+		inx
+		cpx		#(BAS2H-CH)+1
+		bne		-
+	rts
 
 ;------------------------------------------------------------------------------
 
