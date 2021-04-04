@@ -110,6 +110,9 @@ KickSSI263_no_PCR
 	sta		(SSI263Base),y
 
 	; Warning: stepping this won't yield an IRQ, since the phoneme completes before H->L (assuming prev mode=MODE_IRQ_DISABLED)
+	; Phoneme duration(ms) = (16-RATE * 4096)/1023 x (4-DUR)
+	; . RATE=$A, DUR=b#11, then Phoneme Duration = 24.023ms
+	; . RATE=$B, DUR=b#11, then Phoneme Duration = 20.020ms
 	lda		#MODE_PHONEME_TRANSITIONED_INFLECTION+$00	; DR1:DR0=3 , P5:P0=$00
 	ldy		#SSI_DURPHON
 	sta		(SSI263Base),y
@@ -123,6 +126,11 @@ KickSSI263_no_PCR
 	rts
 
 SSI263AttributeData
+; reg0: DUR(b7:b6), PHONEME(b5:b0)
+; reg1: INF(b7:b0)
+; reg2: RATE(b7:4), INF(b3:0)
+; reg3: CTL(b7), ART(b6:4), AMP(b3:b0)
+; reg4: FILTER_FREQ(b7:b0)
 ;	!byte	$00,$52,$B8,$7B,$E6		; SMS's Classic Adventure
 	!byte	$00,$20,$A8,$5C,$E9		; SSI263A Programming Guide's default values
 
@@ -303,7 +311,8 @@ CalcPhraseDuration
 ;------------------------------------------------------------------------------
 
 T263_0
-; Pre: MBBase, SSI263Base
+; Pre:  zpTmp1 = phrase#
+;	MBBase, SSI263Base
 ; Post: C=0(OK), C=1(NG)
 ;
 ; Test#0

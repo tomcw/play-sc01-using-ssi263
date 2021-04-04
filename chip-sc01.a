@@ -67,7 +67,8 @@ KickSC01
 	sta		(MBBase),y
 
 	ldy		#SY6522_ORB
-	lda		#$3F					; STOP (47ms on average)
+	lda		#$3F					; STOP (47ms on average), Inflection=b#00
+									; cf. with SSI263 which kicks with DUR=b#11 (ie. shortest duration) & RATE=$A => ~24ms
 	sta		(MBBase),y
 
 	rts
@@ -211,8 +212,10 @@ TSC01_0
 	php
 
 	ldy		#SY6522_IER
-	lda		#IER_CLR|IxR_TIMER1|IxR_VOTRAX
-	sta		(MBBase),y				; Disable Timer1 & SC01/Votrax IRQ
+	lda		#IER_CLR|IxR_VOTRAX
+	sta		(MBBase),y				; Disable SC01/Votrax IRQ
+	lda		#IER_CLR|IxR_TIMER1
+	sta		(MBTimer),y				; Disable Timer1 IRQ
 
 	jsr		CalcPhraseDuration
 
