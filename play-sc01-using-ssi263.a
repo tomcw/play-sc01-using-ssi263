@@ -217,11 +217,21 @@ PlaySpeechPhrase
 	ldx		#>msg_EscToQuit
 	jsr		Print
 
-@loop	lda		KBD
+@loop	lda		hasSSI263
+		beq		+
+			jsr		DisplayAttrRate
++
+
+		lda		KBD
 		bpl		@loop
 		bit		KBDSTRB
 		cmp		#$80+27
 		beq		@out
+
+		cmp		#$80+'R'-'A'+1	; CTRL+R
+		beq		@decRate
+		cmp		#$80+'R'
+		beq		@incRate
 
 		cmp		#$80+'1'
 		bcc		@loop
@@ -247,6 +257,28 @@ PlaySpeechPhrase
 	sec
 	sbc		#$80+'1'
 	jsr		TestSC01
+	jmp		@outputTime
+
+@decRate
+	lda		SSI263AttributeData+SSI_RATEINF
+	and		#$f0
+	beq		@loop
+	sec
+	sbc		#$10
+	bcs		@setRate	; bra
+@incRate
+	lda		SSI263AttributeData+SSI_RATEINF
+	and		#$f0
+	clc
+	adc		#$10
+;	beq		@loop		; let it wrap, as the CTRL key on my //e isn't working very well!
+@setRate
+	sta		zpTmp1
+	lda		SSI263AttributeData+SSI_RATEINF
+	and		#$0f
+	ora		zpTmp1
+	sta		SSI263AttributeData+SSI_RATEINF
+	jmp		@loop
 
 @outputTime
 	jsr		SaveHV
@@ -430,6 +462,7 @@ LINE1=$480
 LINE2=$500
 LINE3=$580
 LINE4=$600
+LINE5=$680						; "65nnn detected" ... "R=$n"
 SLOT1POS = $13					; pos left of '1'
 
 Display
@@ -565,6 +598,31 @@ DisplayCardUpdate
 +
 
 @done
+	rts
+
+;------------------------------------------------------------------------------
+
+DisplayAttrRate
+	lda		#$80+'R'
+	sta		LINE5+36
+	lda		#$80+'='
+	sta		LINE5+37
+	lda		#$80+'$'
+	sta		LINE5+38
+	lda		SSI263AttributeData+SSI_RATEINF
+	lsr
+	lsr
+	lsr
+	lsr
+	cmp		#10
+	bcc		@digit
+	clc
+	adc		#$80+'A'-$0a
+	bne		+
+@digit
+	clc
+	adc		#$80+'0'
++	sta		LINE5+39
 	rts
 
 ;------------------------------------------------------------------------------
