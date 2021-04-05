@@ -19,3 +19,9 @@ The SSI263 is "kicked" with a PAUSE (0x00) phoneme to start the playback in the 
 The code has both an SC-01 and an SSI263 IRQ handler to handle playback on both chip types. When using the SSI263 IRQ handler, then if the `isrTranslate` flag is set, the handler will convert the SC-01 6-bit phoneme to an equivalent SSI263 phoneme using a 64-byte look-up table (ie. the very same conversation table in AppleWin).
 
 The ISR handlers also count 6522 Timer1 underflow interrupts (from a starting latched value of 0xFFFF) and record the Timer1 h/l values at the handler start. These are used to calculate the phoneme phrase duration.
+
+### Examples:
+
+The 7 phrases at Rate=$B, [here](https://user-images.githubusercontent.com/6696896/113566294-57ae2c00-9604-11eb-8506-812713ae52b8.mp4).
+
+The 7 phrases at Rate=$C, [here](https://user-images.githubusercontent.com/6696896/113566315-60066700-9604-11eb-8b9a-c3d38beb51bb.mp4).
