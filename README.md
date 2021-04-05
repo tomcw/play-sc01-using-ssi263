@@ -25,3 +25,11 @@ The ISR handlers also count 6522 Timer1 underflow interrupts (from a starting la
 The 7 phrases at Rate=$B, [here](https://user-images.githubusercontent.com/6696896/113566294-57ae2c00-9604-11eb-8506-812713ae52b8.mp4).
 
 The 7 phrases at Rate=$C, [here](https://user-images.githubusercontent.com/6696896/113566315-60066700-9604-11eb-8b9a-c3d38beb51bb.mp4).
+
+1. "The spy strikes back" (The Spy Strikes Back)
+2. "Ouch!" (The Spy Strikes Back)
+3. "Crime wave one" (Crime Wave)
+4. "Game over" (Crime Wave)
+5. "Please consult the hint sheet" (Crypt of Medea)
+6. "You can't go that way" (Crypt of Medea)
+7. "You were a pitiful opponent" (Berzap!)
