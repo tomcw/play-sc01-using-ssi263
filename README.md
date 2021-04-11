@@ -14,7 +14,7 @@ For each card it finds:
 
 ### Details:
 
-The SSI263 is "kicked" with a PAUSE (0x00) phoneme to start the playback in the IRQ handler. But the 4 attribute registers are also setup at this point, and the SSI263 IRQ handler only ever writes to reg-0 (the phoneme register). The 4-bit Rate attribute is part of this setup, and can be configured in the main UI.
+The SSI263 is "kicked" with a STOP (0x3F) phoneme to start the playback in the IRQ handler. But the 4 attribute registers are also setup at this point, and the SSI263 IRQ handler only ever writes to reg-0 (the phoneme register). The 4-bit Rate attribute is part of this setup, and can be configured in the main UI.
 
 The code has both an SC-01 and an SSI263 IRQ handler to handle playback on both chip types. When using the SSI263 IRQ handler, then if the `isrTranslate` flag is set, the handler will convert the SC-01 6-bit phoneme to an equivalent SSI263 phoneme using a 64-byte look-up table (ie. the very same conversation table in AppleWin).
 
