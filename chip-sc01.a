@@ -13,6 +13,10 @@ DetectSC01
 	; SC01 is only on SMS's Speech, SMS's Sound/Speech, AppleWin's hybrid MB + MAME's hybrid MB
 	; - Speech using 6522 PCR w/o IRQ (based on Crimewave's SC01 code)
 
+	jsr		SetISR_NMI
+	lda		#0
+	sta		isrNMIcount
+
 	lda		zpTmp1
 	and		#1
 	beq		+
@@ -24,7 +28,7 @@ DetectSC01
 	jsr		KickSC01
 
 	lda		#$FF
-	jsr		WAIT					; delay for 0x28882 (166018) cycles / ~163ms
+	jsr		WAIT					; delay for 0x28882 (166018) cycles / ~163ms (and NMI may have occurred)
 
 	ldy		#SY6522_IFR
 	lda		#IxR_VOTRAX				; check CB1(Speech) IRQ
@@ -35,7 +39,10 @@ DetectSC01
 		jsr		DisableSC01
 		inc		hasSC01
 
-+	rts
++	lda		isrNMIcount
+	sta		isrNMIcount_SC01
+
+	rts
 
 ;------------------------------------------------------------------------------
 

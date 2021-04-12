@@ -205,7 +205,7 @@ Check6522IRQ
 ; Post: C=0(OK), C=1(NG)
 
 	;
-	; Check interrupt line
+	; Check interrupt line(s)
 	;
 
 	sei
@@ -215,10 +215,15 @@ Check6522IRQ
 	lda		#>Check6522ISR
 	sta		IRQH
 
+	jsr		SetISR_NMI
+
 ;@6522_A_int
 	lda		zpTmp1
 	and		#1
 	beq		@6522_B_int
+
+	lda		#0
+	sta		isrNMIcount
 
 	lda		#1
 	ldy		#SY6522_A_BASE+SY6522_TIMER1L_COUNTER
@@ -234,8 +239,11 @@ Check6522IRQ
 	ldy		#SY6522_A_BASE+SY6522_IER
 	sta		(MBBase),y
 
-	lda		#$f							; wait 0x304 cycles
+	lda		#$f							; wait 0x304 cycles (and NMI may have occurred)
 	jsr		WAIT
+
+	lda		isrNMIcount
+	sta		isrNMIcount_A
 
 	ldy		#SY6522_A_BASE+SY6522_IFR
 	lda		#IxR_TIMER1
@@ -253,6 +261,9 @@ Check6522IRQ
 	and		#2
 	beq		@6522_ok
 
+	lda		#0
+	sta		isrNMIcount
+
 	lda		#1
 	ldy		#SY6522_B_BASE+SY6522_TIMER1L_COUNTER
 	sta		(MBBase),y
@@ -267,8 +278,11 @@ Check6522IRQ
 	ldy		#SY6522_B_BASE+SY6522_IER
 	sta		(MBBase),y
 
-	lda		#$f							; wait 0x304 cycles
+	lda		#$f							; wait 0x304 cycles (and NMI may have occurred)
 	jsr		WAIT
+
+	lda		isrNMIcount
+	sta		isrNMIcount_B
 
 	ldy		#SY6522_B_BASE+SY6522_IFR
 	lda		#IxR_TIMER1
@@ -325,6 +339,26 @@ Check6522ISR
 	tax
 
 	lda		$45		; for Apple II/II+
+	rti
+
+;------------------------------------------------------------------------------
+
+SetISR_NMI
+	lda		#$4C
+	sta		NMI+0
+	lda		#<Check6522ISR_NMI
+	sta		NMI+1
+	lda		#>Check6522ISR_NMI
+	sta		NMI+2
+	rts
+
+	;
+
+Check6522ISR_NMI
+; 6502's NMI is triggered on NMI(active low) falling edge (H->L).
+; Interrupt will be cleared by IRQ handler above.
+
+	inc		isrNMIcount
 	rti
 
 ;------------------------------------------------------------------------------

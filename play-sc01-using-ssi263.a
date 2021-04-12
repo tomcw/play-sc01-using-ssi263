@@ -55,6 +55,11 @@ entrypoint
 ; Pre: TODO: disable accelerators or set to 1MHz
 ;
 
+	lda		#0		; mode=main
+	beq		+
+	lda		#1		; mode=test
++	sta		mode
+
 	sei
 
 	ldx		#($ff-ZP_BASE)
@@ -62,6 +67,14 @@ entrypoint
 		sta		saveZP,x
 		dex
 		bpl		-
+
+	ldx		#3
+-		lda		NMI,x
+		sta		saveNMI,x
+		dex
+		bpl		-
+	lda		#$40	; RTI opcode
+	sta		NMI
 
 	lda		IRQL
 	sta		saveIRQL
@@ -147,7 +160,12 @@ entrypoint
 ++			jsr		DetectSubunits	; ie. speech chips
 			ldx		slotUnderTest
 			jsr		DisplayCardUpdate
-			jsr		PlaySpeechPhrase
+
+			lda		mode
+			beq		@play
+				jsr		DoModeTest
+				jmp		+
+@play			jsr		PlaySpeechPhrase
 			;
 +		dec		slotUnderTest
 		bne		@nextSlot
@@ -168,6 +186,12 @@ exit
 	sta		IRQL
 	lda		saveIRQH
 	sta		IRQH
+
+	ldx		#3
+-		lda		saveNMI,x
+		sta		NMI,x
+		dex
+		bpl		-
 
 	ldx		#($ff-ZP_BASE)
 -		lda		saveZP,x
@@ -309,6 +333,41 @@ msg_PressToPlaySC01		!text "SC01: 1-9",0
 msg_PressToPlaySSI263	!text "SSI263: A-I",0
 msg_EscToQuit			!text " or ESC",$d,0
 msg_Time				!text "Time:",0
+
+;------------------------------------------------------------------------------
+
+DoModeTest
+
+	lda		#<msg_6522A_NMIresult
+	ldx		#>msg_6522A_NMIresult
+	jsr		Print
+	ldx		isrNMIcount_A
+	jsr		PRNTX
+
+	lda		#<msg_6522B_NMIresult
+	ldx		#>msg_6522B_NMIresult
+	jsr		Print
+	ldx		isrNMIcount_B
+	jsr		PRNTX
+
+	lda		#<msg_SC01_NMIresult
+	ldx		#>msg_SC01_NMIresult
+	jsr		Print
+	ldx		isrNMIcount_SC01
+	jsr		PRNTX
+
+	lda		#$80+$0d
+	jsr		COUT
+
+@loop	lda		KBD
+		bpl		@loop
+	bit		KBDSTRB
+
+	rts
+
+msg_6522A_NMIresult		!text "6522A-NMI=",0
+msg_6522B_NMIresult		!text " 6522B-NMI=",0
+msg_SC01_NMIresult		!text " SC01-NMI=",0
 
 ;------------------------------------------------------------------------------
 
@@ -702,6 +761,8 @@ COMPONENT_SSI263	= $40
 
 !align 15, 0, 0		; align to 16 bytes (pad with 0's)
 
+mode			!byte 0
+
 saveZP			!fill ($100-ZP_BASE),0
 slotInfo		!fill 8,0	; slot[0..7] : bits: 1=6522/$80, 0=6522/$00
 numMockingboards	!byte 0
@@ -732,10 +793,16 @@ isrFlag			!byte 0
 isrError		!byte 0,0
 isrCopyA		!byte 0
 
+isrNMIcount		!byte 0
+isrNMIcount_A	!byte 0
+isrNMIcount_B	!byte 0
+isrNMIcount_SC01	!byte 0
+
 saveZPTextVars	!fill (BAS2H-CH)+1,0
 
 saveIRQL		!byte 0
 saveIRQH		!byte 0
+saveNMI			!byte 0,0,0
 
 errorExpected	!byte 0
 errorActual		!byte 0
@@ -743,7 +810,7 @@ errorActual		!byte 0
 hasBeenReset	!byte 0
 userlandSP		!byte 0
 
-msg_title	!text "play-sc01-using-ssi263 v0.1, 2021",$d
+msg_title	!text "play-sc01-using-ssi263 v0.2, 2021",$d
 msg_titleEnd !text 0
 
 msg_cpu6502Detected !text "6502 detected",$d
