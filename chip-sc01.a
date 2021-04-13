@@ -124,8 +124,8 @@ TestSC01
 ; Post: C=0(OK), C=1(NG)
 ; Uses: zpTmp1
 
-	cmp		#NUM_PHRASES+1
-	bcc		+						; A < NUM_PHRASES+1
+	cmp		#NUM_PHRASES
+	bcc		+						; A < NUM_PHRASES
 		rts
 +
 	sta		zpTmp1

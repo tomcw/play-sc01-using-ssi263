@@ -199,8 +199,8 @@ TestSSI263
 ; Uses: zpTmp1
 ; NB. Only uses *one* SSI263
 
-	cmp		#NUM_PHRASES+1
-	bcc		+						; A < NUM_PHRASES+1
+	cmp		#NUM_PHRASES
+	bcc		+						; A < NUM_PHRASES
 		rts
 +
 	sta		zpTmp1

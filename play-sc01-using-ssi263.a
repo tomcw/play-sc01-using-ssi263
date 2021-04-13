@@ -241,6 +241,12 @@ PlaySpeechPhrase
 	ldx		#>msg_EscToQuit
 	jsr		Print
 
+	lda		#0
+	ldx		#2
+-		sta		phraseDuration,x
+		dex
+		bpl		-
+
 @loop	lda		hasSSI263
 		beq		+
 			jsr		DisplayAttrRate
