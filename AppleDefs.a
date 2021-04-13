@@ -65,4 +65,5 @@ VERSION3 = $FBC0
 VERSION4 = $FBBF
 HOME = $FC58
 WAIT = $FCA8
+PRHEX = $FDE3		; output 1 hex nibble
 COUT = $FDED

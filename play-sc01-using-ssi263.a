@@ -55,10 +55,10 @@ entrypoint
 ; Pre: TODO: disable accelerators or set to 1MHz
 ;
 
-	lda		#0		; mode=main
+	lda		#0		; testMode=main
 	beq		+
-	lda		#1		; mode=test
-+	sta		mode
+	lda		#1		; testMode=test
++	sta		testMode
 
 	sei
 
@@ -161,9 +161,9 @@ entrypoint
 			ldx		slotUnderTest
 			jsr		DisplayCardUpdate
 
-			lda		mode
+			lda		testMode
 			beq		@play
-				jsr		DoModeTest
+				jsr		DoTestMode
 				jmp		+
 @play			jsr		PlaySpeechPhrase
 			;
@@ -336,28 +336,36 @@ msg_Time				!text "Time:",0
 
 ;------------------------------------------------------------------------------
 
-DoModeTest
+DoTestMode
+
+	jsr		PrintSlotNum
 
 	lda		#<msg_6522A_NMIresult
 	ldx		#>msg_6522A_NMIresult
 	jsr		Print
-	ldx		isrNMIcount_A
-	jsr		PRNTX
+	lda		isrNMIcount_A
+	jsr		PRHEX
 
 	lda		#<msg_6522B_NMIresult
 	ldx		#>msg_6522B_NMIresult
 	jsr		Print
-	ldx		isrNMIcount_B
-	jsr		PRNTX
+	lda		isrNMIcount_B
+	jsr		PRHEX
 
 	lda		#<msg_SC01_NMIresult
 	ldx		#>msg_SC01_NMIresult
 	jsr		Print
-	ldx		isrNMIcount_SC01
-	jsr		PRNTX
+	lda		isrNMIcount_SC01
+	jsr		PRHEX
 
-	lda		#$80+$0d
-	jsr		COUT
+	lda		#<msg_AY_result
+	ldx		#>msg_AY_result
+	jsr		Print
+	lda		hasAY8913
+	jsr		PRHEX
+
+;	lda		#$80+$0d	; not reqd, as above is exactly 40 chars
+;	jsr		COUT
 
 @loop	lda		KBD
 		bpl		@loop
@@ -365,9 +373,12 @@ DoModeTest
 
 	rts
 
-msg_6522A_NMIresult		!text "6522A-NMI=",0
-msg_6522B_NMIresult		!text " 6522B-NMI=",0
-msg_SC01_NMIresult		!text " SC01-NMI=",0
+; 0123456789012345678901234567890123456789
+; Slot #n:NMI: 6522A=x 6522B=x SC01=x AY=x
+msg_6522A_NMIresult		!text "NMI: 6522A=",0
+msg_6522B_NMIresult		!text " 6522B=",0
+msg_SC01_NMIresult		!text " SC01=",0
+msg_AY_result			!text " AY=",0
 
 ;------------------------------------------------------------------------------
 
@@ -423,6 +434,7 @@ DetectSubunits
 	sta		isPhasorCard			; assume Mockingboard
 	sta		hasSSI263				; ... no SSI263's
 	sta		hasSC01					; ... no SC01
+	sta		hasAY8913				; ... no AY8913's
 
 	lda		#PH_MOCKINGBOARD
 	sta		phasorMode
@@ -465,7 +477,8 @@ DetectSubunits
 	;
 
 	jsr		DetectSSI263			; pre: zpTmp1
-	jmp		DetectSC01				; pre: zpTmp1
+	jsr		DetectSC01				; pre: zpTmp1
+	jmp		DetectAY8913			; pre: zpTmp1
 
 ;------------------------------------------------------------------------------
 
@@ -606,23 +619,25 @@ DisplayCardUpdate
 	tax
 
 	lda		has6522
-	cmp		#1					; 6522/AY8913 at $00?
+	cmp		#1					; only a 6522 at $00?
 	bne		+
 		lda		#$80+'1'		; MB-Sound I (has a 6522/AY8913 at $00) or MB-Speech I (has a 6522/SC01) at $00
 		sta		LINE2+SLOT1POS,x
 
 +	lda		has6522
-	cmp		#2					; 6522/AY8913 at $80?
+	cmp		#2					; only a 6522 at $80?
 	bne		+
-		lda		hasSC01
-		beq		+				; no SC01 - don't know what this is!
-		lda		#$80+'S'		; MB-Sound/Speech I has a 6522/SC01 at $00; and a 6522/AY8913 at $80
+		lda		#$80+'?'		; don't know what this is!
 		sta		LINE3+SLOT1POS,x
 
 +	lda		has6522
-	cmp		#3					; 6522/AY8913 at $00 && $80?
+	cmp		#3					; 6522 at $00 && $80?
 	bcc		@speech				; (branch if A < 3)
-		lda		isPhasorCard
+		lda		hasSC01
+		beq		+
+			lda		#$80+'S'	; MB-Sound/Speech I has a 6522/SC01 at $00; and a 6522/AY8913 at $80
+			bne		@out
++		lda		isPhasorCard
 		beq		@isIIorC
 			lda		#$80+'P'
 			bne		@out
@@ -752,7 +767,8 @@ COMPONENT_SC01		= $30
 COMPONENT_SSI263	= $40
 
 !source "chip-6522.a"
-!source "chip-sc01.a"
+!source "chip-ay8913.a"
+!source "chip-sc01.a"		; defines NUM_PHRASES (so must precede chip-ssi263.a)
 !source "chip-ssi263.a"
 
 ;------------------------------------------------------------------------------
@@ -761,7 +777,7 @@ COMPONENT_SSI263	= $40
 
 !align 15, 0, 0		; align to 16 bytes (pad with 0's)
 
-mode			!byte 0
+testMode		!byte 0
 
 saveZP			!fill ($100-ZP_BASE),0
 slotInfo		!fill 8,0	; slot[0..7] : bits: 1=6522/$80, 0=6522/$00
@@ -783,6 +799,7 @@ phasorMode		!byte PH_MOCKINGBOARD
 
 has6522			!byte 0
 hasLowerCase	!byte 0
+hasAY8913		!byte 0
 hasSSI263		!byte 0
 hasSC01			!byte 0
 
