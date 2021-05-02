@@ -68,7 +68,7 @@ entrypoint
 		dex
 		bpl		-
 
-	ldx		#3
+	ldx		#2
 -		lda		NMI,x
 		sta		saveNMI,x
 		dex
@@ -187,7 +187,7 @@ exit
 	lda		saveIRQH
 	sta		IRQH
 
-	ldx		#3
+	ldx		#2
 -		lda		saveNMI,x
 		sta		NMI,x
 		dex
@@ -331,12 +331,12 @@ PlaySpeechPhrase
 ;
 
 ;  0123456789012345678901234567890123456789
-; "Slot #x:SC01: 1-9 or ESC"
-; "Slot #x:SC01: 1-9, SSI263: A-I or ESC"
-; "Slot #x:SSI263: A-I or ESC"
+; "Slot #x:SC01: 1-7 or ESC"
+; "Slot #x:SC01: 1-7, SSI263: A-G or ESC"
+; "Slot #x:SSI263: A-G or ESC"
 
-msg_PressToPlaySC01		!text "SC01: 1-9",0
-msg_PressToPlaySSI263	!text "SSI263: A-I",0
+msg_PressToPlaySC01		!text "SC01: 1-7",0
+msg_PressToPlaySSI263	!text "SSI263: A-G",0
 msg_EscToQuit			!text " or ESC",$d,0
 msg_Time				!text "Time:",0
 
@@ -833,7 +833,7 @@ errorActual		!byte 0
 hasBeenReset	!byte 0
 userlandSP		!byte 0
 
-msg_title	!text "play-sc01-using-ssi263 v0.2, 2021",$d
+msg_title	!text "play-sc01-using-ssi263 v0.3, 2021",$d
 msg_titleEnd !text 0
 
 msg_cpu6502Detected !text "6502 detected",$d
