@@ -256,7 +256,6 @@ Check6522IRQ
 		sei
 
 		and		isrIFR_A
-		ora		isrNMIcount_A
 		beq		@6522_err
 
 +
@@ -299,7 +298,6 @@ Check6522IRQ
 		sei
 
 		and		isrIFR_B
-		ora		isrNMIcount_B
 		beq		@6522_err
 
 +
