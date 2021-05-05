@@ -245,19 +245,21 @@ Check6522IRQ
 
 	lda		isrNMIcount
 	sta		isrNMIcount_A
+	bne		+							; NMI occurred, so IFR.TIMER1 already cleared!
 
-	ldy		#SY6522_A_BASE+SY6522_IFR
-	lda		#IxR_TIMER1
-	and		(MBBase),y
-	beq		@6522_err
+		ldy		#SY6522_A_BASE+SY6522_IFR
+		lda		#IxR_TIMER1
+		and		(MBBase),y
+		beq		@6522_err
 
-	cli
-	sei
+		cli
+		sei
 
-	and		isrIFR_A
-	ora		isrNMIcount_A
-	beq		@6522_err
+		and		isrIFR_A
+		ora		isrNMIcount_A
+		beq		@6522_err
 
++
 @6522_B_int
 	lda		zpTmp1
 	and		#2
@@ -286,19 +288,21 @@ Check6522IRQ
 
 	lda		isrNMIcount
 	sta		isrNMIcount_B
+	bne		+							; NMI occurred, so IFR.TIMER1 already cleared!
 
-	ldy		#SY6522_B_BASE+SY6522_IFR
-	lda		#IxR_TIMER1
-	and		(MBBase),y
-	beq		@6522_err
+		ldy		#SY6522_B_BASE+SY6522_IFR
+		lda		#IxR_TIMER1
+		and		(MBBase),y
+		beq		@6522_err
 
-	cli
-	sei
+		cli
+		sei
 
-	and		isrIFR_B
-	ora		isrNMIcount_B
-	beq		@6522_err
+		and		isrIFR_B
+		ora		isrNMIcount_B
+		beq		@6522_err
 
++
 @6522_ok
 	clc
 	rts
