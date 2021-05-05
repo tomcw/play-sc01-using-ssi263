@@ -831,7 +831,7 @@ errorActual		!byte 0
 hasBeenReset	!byte 0
 userlandSP		!byte 0
 
-msg_title	!text "play-sc01-using-ssi263 v0.4, 2021",$d
+msg_title	!text "play-sc01-using-ssi263 v0.5, 2021",$d
 msg_titleEnd !text 0
 
 msg_cpu6502Detected !text "6502 detected",$d

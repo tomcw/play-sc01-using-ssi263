@@ -21,7 +21,7 @@ DetectSC01
 	and		#1
 	beq		+
 
-	lda		#IxR_VOTRAX
+	lda		#IER_CLR|IxR_VOTRAX
 	ldy		#SY6522_IER
 	sta		(MBBase),y				; disable CB1(Speech) IRQ
 
@@ -148,6 +148,11 @@ TestSC01
 	lda		#>TestSC01ISR
 	sta		IRQH
 
+	lda		#<TestSC01ISR_NMI
+	sta		NMI+1
+	lda		#>TestSC01ISR_NMI
+	sta		NMI+2
+
 	lda		#COMPONENT_SC01+1		; test component $31
 	sta		testComponentNum
 	lda		#$ff
@@ -186,9 +191,6 @@ TSC01_0
 ; Pre: zpTmp1 = phrase#
 ;	MBBaseL = SY6522_A_BASE
 ; Post: C=0(OK), C=1(NG)
-;
-; Test#0
-; . Play phrase "THE SPY STRIKES BACK" and check total duration is within tolerance
 
 	jsr		resetSubTest			; subTest #0
 	jsr		incTotalTests
@@ -239,9 +241,14 @@ SC01Phrases
 	!word	COM_Help
 	!word	COM_CantGoThatWay
 	!word	BZ_PitifulOpponent
-	!word	0
 
 ;------------------------------------------------------------------------------
+
+TestSC01ISR_NMI
+; 6502's NMI is triggered on NMI(active low) falling edge (H->L).
+; Interrupt will be cleared by IRQ handler above.
+
+	; fall through...
 
 TestSC01ISR
 ; Pre:
