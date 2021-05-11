@@ -13,7 +13,7 @@ DetectSC01
 	; SC01 is only on SMS's Speech, SMS's Sound/Speech, AppleWin's hybrid MB + MAME's hybrid MB
 	; - Speech using 6522 PCR w/o IRQ (based on Crimewave's SC01 code)
 
-	jsr		SetISR_NMI
+	; NB. NMI handler already setup by Check6522IRQ()
 	lda		#0
 	sta		isrNMIcount
 

@@ -126,7 +126,7 @@ Check6522Datalines
 @loop
 ;@6522_A_w
 		lda		zpTmp1
-		and		#1
+		and		#HAS_6522A
 		beq		@6522_B_w
 
 		ldy		#SY6522_A_BASE+SY6522_DDRB
@@ -140,7 +140,7 @@ Check6522Datalines
 
 @6522_B_w
 		lda		zpTmp1
-		and		#2
+		and		#HAS_6522B
 		beq		@6522_A_r
 
 		ldy		#SY6522_B_BASE+SY6522_DDRB
@@ -154,7 +154,7 @@ Check6522Datalines
 
 @6522_A_r
 		lda		zpTmp1
-		and		#1
+		and		#HAS_6522A
 		beq		@6522_B_r
 
 		ldy		#SY6522_A_BASE+SY6522_DDRB
@@ -170,7 +170,7 @@ Check6522Datalines
 
 @6522_B_r
 		lda		zpTmp1
-		and		#2
+		and		#HAS_6522B
 		beq		@next
 
 		ldy		#SY6522_B_BASE+SY6522_DDRB
@@ -211,15 +211,12 @@ Check6522IRQ
 	sei
 
 	lda		#<Check6522ISR
-	sta		IRQL
-	lda		#>Check6522ISR
-	sta		IRQH
-
-	jsr		SetISR_NMI
+	ldx		#>Check6522ISR
+	jsr		SetIrqNmiVectors
 
 ;@6522_A_int
 	lda		zpTmp1
-	and		#1
+	and		#HAS_6522A
 	beq		@6522_B_int
 
 	lda		#0
@@ -261,7 +258,7 @@ Check6522IRQ
 +
 @6522_B_int
 	lda		zpTmp1
-	and		#2
+	and		#HAS_6522B
 	beq		@6522_ok
 
 	lda		#0
@@ -311,13 +308,6 @@ Check6522IRQ
 
 ;------------------------------------------------------------------------------
 
-Check6522ISR_NMI
-; 6502's NMI is triggered on NMI(active low) falling edge (H->L).
-; Interrupt will be cleared by IRQ handler above.
-
-	inc		isrNMIcount
-	; fall through...
-
 Check6522ISR
 ; Pre:
 ;	6502 has pushed P
@@ -353,17 +343,6 @@ Check6522ISR
 
 	lda		$45		; for Apple II/II+
 	rti
-
-;------------------------------------------------------------------------------
-
-SetISR_NMI
-	lda		#$4C
-	sta		NMI+0
-	lda		#<Check6522ISR_NMI
-	sta		NMI+1
-	lda		#>Check6522ISR_NMI
-	sta		NMI+2
-	rts
 
 ;------------------------------------------------------------------------------
 
