@@ -15,9 +15,8 @@ DetectAY8913
 
 	lda		isPhasorCard
 	beq		+
-		lda		#%00001111
-		sta		hasAY8913		; can't test them, so just assume they are all working
-		rts
+		lda		#PH_MOCKINGBOARD
+		jsr		SetPhasorMode
 +
 
 !if 0 {		; comment out this mb-audit specific code
@@ -114,6 +113,7 @@ AY_WriteRegValue
 ; Pre: Y = SY6522_ORA for chip A or B
 ;	A=reg#
 ;	X=value
+; Post: Y = SY6522_ORA for chip A or B
 	jsr		SF_SelectReg
 	txa
 	jmp		SF_WriteReg
@@ -121,7 +121,7 @@ AY_WriteRegValue
 AY_ReadRegValue
 ; Pre: Y = SY6522_ORA for chip A or B
 ;	X=reg#
-; Post:
+; Post: Y = SY6522_ORA for chip A or B
 ;	A=value
 	jsr		AY_SetPortAOutput
 	txa
@@ -161,8 +161,16 @@ AY_ReadReg
 ; Post: Y = SY6522_ORA for chip A or B
 ;	A = data
 	lda		#AY_READ
-	jsr		+
+	dey		; Y = ORB (reg#0)
+	sta		(MBBase),y
+	iny		; Y = ORA (reg#1)
 	lda		(MBBase),y		; Read Port-A
+	tax
+	lda		#AY_INACTIVE
+	dey		; Y = ORB (reg#0)
+	sta		(MBBase),y
+	iny		; Y = ORA (reg#1)
+	txa
 	rts
 
 SF_SelectReg
