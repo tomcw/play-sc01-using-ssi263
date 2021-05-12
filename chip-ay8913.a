@@ -175,8 +175,8 @@ AY_ReadReg
 
 SF_SelectReg
 ; Pre: Y = SY6522_ORA for chip A or B
-; Post: Y = SY6522_ORA for chip A or B
 ;	A = reg#
+; Post: Y = SY6522_ORA for chip A or B
 	sta		(MBBase),y
 	lda		#AY_LATCH
 	bne		+
@@ -184,8 +184,8 @@ SF_SelectReg
 SF_WriteReg
 ; Pre: Y = SY6522_ORA for chip A or B
 ;	6522.DDRA = $FF (Port-A direction = output)
-; Post: Y = SY6522_ORA for chip A or B
 ;	A = data
+; Post: Y = SY6522_ORA for chip A or B
 	sta		(MBBase),y
 	lda		#AY_WRITE
 	bne		+
