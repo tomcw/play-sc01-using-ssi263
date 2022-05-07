@@ -434,6 +434,8 @@ DetectSubunits
 ; Detect Phasor card, AY8913, SSI263 & SC01
 ; Pre: zpTmp1 = slotInfo[slot]
 
+	; NB. don't bother with cards that don't have SSI263/SC01, ie. MegaAudio, MB4C, EchoPlus
+
 	lda		#0
 	sta		isPhasorCard			; assume Mockingboard
 	sta		hasSSI263				; ... no SSI263's
@@ -446,8 +448,8 @@ DetectSubunits
 	; Determine if this is a Mockingboard or Phasor card
 
 	lda		zpTmp1
-	and		#3
-	cmp		#3
+	and		#HAS_6522B|HAS_6522A
+	cmp		#HAS_6522B|HAS_6522A
 	bne		@donePhasor
 
 	lda		#$55
@@ -592,15 +594,23 @@ incTotalTests
 
 ;------------------------------------------------------------------------------
 
-;LINE0=$400
-LINE1=$480
-LINE2=$500
-LINE3=$580
-LINE4=$600
-LINE5=$680						; "65nnn detected" ... "R=$n"
+TEXTLINE0=$400
+TEXTLINE1=$480
+TEXTLINE2=$500
+TEXTLINE3=$580
+TEXTLINE4=$600
+TEXTLINE5=$680
+TEXTLINE6=$700
+
+LINE1=TEXTLINE2
+LINE2=TEXTLINE3
+LINE3=TEXTLINE4
+LINE4=TEXTLINE5
+LINE5=TEXTLINE6					; "65nnn detected" ... "R=$n"
 SLOT1POS = $13					; pos left of '1'
 
 Display
+;(blank)
 ;               1  2  3  4  5  6  7
 ;          $00: ?     1  S  C  P       ; ?=6522(VIA), 1=Sound-I(or Speech-I), S=Sound/Speech-I, C=MB-C(or MB-A or Sound-II), P=Phasor
 ;          $80:    ?     S  C  P
@@ -660,6 +670,8 @@ Display
 	jsr		COUT
 	lda		#$80+$0a
 	jsr		COUT
+	lda		#$80+$0a
+	jsr		COUT
 
 	rts
 
@@ -696,6 +708,8 @@ DisplayCardUpdate
 +	lda		has6522
 	cmp		#3					; 6522 at $00 && $80?
 	bcc		@speech				; (branch if A < 3)
+		lda		hasSSI263
+		bne		+
 		lda		hasSC01
 		beq		+
 			lda		#$80+'S'	; MB-Sound/Speech I has a 6522/SC01 at $00; and a 6522/AY8913 at $80
@@ -898,7 +912,7 @@ errorActual		!byte 0
 hasBeenReset	!byte 0
 userlandSP		!byte 0
 
-msg_title	!text "play-sc01-using-ssi263 v0.7, 2021",$d
+msg_title	!text "play-sc01-using-ssi263 v0.8, tomch, 2022",$d
 msg_titleEnd !text 0
 
 msg_cpu6502Detected !text "6502 detected",$d

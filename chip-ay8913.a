@@ -78,6 +78,15 @@ DetectAY8913
 		sta		zpTmp3
 		bne		-
 
+	lda		isPhasorCard
+	beq		+
+	lda		#%00000011
+	cmp		hasAY8913
+	bne		+
+		lda		#%00001111
+		sta		hasAY8913
++
+
 	rts
 
 ;------------------------------------------------------------------------------
